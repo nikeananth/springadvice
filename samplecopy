@@ -1,5 +1,6 @@
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -33,7 +34,14 @@ public class ObjectCopyUtil {
                 targetField.setAccessible(true);
 
                 Object value = sourceField.get(source);
-                targetField.set(target, value);
+
+                // Handle special case for Address field
+                if ("address".equals(sourceFieldName) && value instanceof Address) {
+                    Object mappedAddress = mapAddressFields((Address) value);
+                    targetField.set(target, mappedAddress);
+                } else {
+                    targetField.set(target, value);
+                }
             } catch (NoSuchFieldException | IllegalAccessException e) {
                 e.printStackTrace(); // Handle or log the exception as needed
             }
@@ -44,8 +52,12 @@ public class ObjectCopyUtil {
         try {
             return targetClass.getDeclaredConstructor().newInstance();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to create instance of " + targetClass, e);
+            throw new RuntimeException("Failed to create an instance of " + targetClass, e);
         }
+    }
+
+    private static AddressV2 mapAddressFields(Address address) {
+        return new AddressV2(address.getStreet(), address.getCity(), address.getZipCode());
     }
 
     public static void main(String[] args) {
@@ -111,7 +123,7 @@ class EmployeeV2 {
     private int id;
     private double annualSalary;
     private List<Map<String, Object>> contactLinks;
-    private Address employeeAddress;
+    private AddressV2 employeeAddress;
 
     // Getters, setters, toString, etc.
 }
@@ -122,6 +134,20 @@ class Address {
     private String zipCode;
 
     public Address(String street, String city, String zipCode) {
+        this.street = street;
+        this.city = city;
+        this.zipCode = zipCode;
+    }
+
+    // Getters, setters, toString, etc.
+}
+
+class AddressV2 {
+    private String street;
+    private String city;
+    private String zipCode;
+
+    public AddressV2(String street, String city, String zipCode) {
         this.street = street;
         this.city = city;
         this.zipCode = zipCode;
