@@ -1,128 +1,140 @@
+import org.apache.commons.beanutils.BeanUtils;
+import org.apache.commons.beanutils.PropertyUtils;
+
 import java.util.Map;
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map.Entry;
-import java.lang.reflect.Field;
+import java.util.List;
+import java.util.ArrayList;
 
 public class ObjectCopyUtil {
 
-    // (Other methods remain unchanged)
+    public static <T, U> U[] copyArray(T[] sourceArray, Class<U> targetClass, Map<String, String> fieldMappings) {
+        U[] targetArray = (U[]) java.lang.reflect.Array.newInstance(targetClass, sourceArray.length);
 
-    private static <T, U> Map<String, String> createFieldMappingsForClass(Class<T> sourceClass, Class<U> targetClass) {
-        if (sourceClass == Employee.class && targetClass == EmployeeV2.class) {
-            return Map.of(
-                    "name", "employeeName",
-                    "employeeId", "id",
-                    "salary", "annualSalary",
-                    "links", "contactLinks",
-                    "address", "employeeAddress",
-                    "dschema", "dschema"
-            );
-        } else if (sourceClass == Address.class && targetClass == AddressV2.class) {
-            return Map.of(
-                    "street", "street",
-                    "city", "city",
-                    "zipCode", "zipCode",
-                    "location", "location"  // Add this mapping for the Location field
-            );
-        } else if (sourceClass == Location.class && targetClass == LocationV2.class) {
-            return Map.of(
-                    "latitude", "latitude",
-                    "longitude", "longitude",
-                    "datalink", "datalink"  // Add this mapping for the datalink field
-            );
+        for (int i = 0; i < sourceArray.length; i++) {
+            T source = sourceArray[i];
+            U target = createInstance(targetClass);
+            copyFields(source, target, fieldMappings);
+            targetArray[i] = target;
         }
 
-        return Map.of();
+        return targetArray;
     }
 
-    // Modify the copyFields method to handle nested objects, including the new datalink field
     public static <T, U> void copyFields(T source, U target, Map<String, String> fieldMappings) {
-        Class<?> sourceClass = source.getClass();
-        Class<?> targetClass = target.getClass();
-
         for (Map.Entry<String, String> entry : fieldMappings.entrySet()) {
             String sourceFieldName = entry.getKey();
             String targetFieldName = entry.getValue();
 
             try {
-                Field sourceField = sourceClass.getDeclaredField(sourceFieldName);
-                Field targetField = targetClass.getDeclaredField(targetFieldName);
-                sourceField.setAccessible(true);
-                targetField.setAccessible(true);
+                Object sourceValue = PropertyUtils.getProperty(source, sourceFieldName);
+                Object targetValue = PropertyUtils.getProperty(target, targetFieldName);
 
-                Object value = sourceField.get(source);
-
-                // Handle specific fields
-                if (sourceFieldName.equals("datalink")) {
-                    // Perform a deep copy for the datalink field
-                    Object copiedDatalink = deepCopyObject(value);
-                    targetField.set(target, copiedDatalink);
-                } else if (value != null && !isPrimitiveOrWrapper(value.getClass())) {
-                    // Handle nested objects recursively
-                    Object mappedObject = mapNestedObject(value, targetField.getType());
-                    targetField.set(target, mappedObject);
+                if (sourceValue != null) {
+                    if (isPrimitiveOrWrapper(sourceValue.getClass())) {
+                        // Shallow copy primitive or wrapper
+                        BeanUtils.copyProperty(target, targetFieldName, sourceValue);
+                    } else {
+                        // Deep copy non-primitive
+                        BeanUtils.copyProperty(target, targetFieldName, deepCopyObject(sourceValue));
+                    }
                 } else {
-                    targetField.set(target, value);
+                    // Handle null values
+                    BeanUtils.copyProperty(target, targetFieldName, null);
                 }
-            } catch (NoSuchFieldException | IllegalAccessException e) {
+            } catch (ReflectiveOperationException e) {
                 e.printStackTrace(); // Handle or log the exception as needed
             }
         }
     }
 
-    // Recursive deep copy for objects
-    private static Object deepCopyObject(Object original) {
-        if (original == null) {
-            return null;
-        }
-
-        if (original instanceof Map) {
-            // Deep copy for Map
-            return deepCopyMap((Map<?, ?>) original);
-        } else if (original instanceof Iterable) {
-            // Deep copy for Iterable (e.g., List, Set)
-            return deepCopyIterable((Iterable<?>) original);
-        } else if (original.getClass().isArray()) {
-            // Deep copy for arrays
-            return deepCopyArray(original);
-        } else {
-            // Assuming it's a simple object (not a nested structure), return a reference copy
-            return original;
+    private static <U> U createInstance(Class<U> targetClass) {
+        try {
+            return targetClass.getDeclaredConstructor().newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create an instance of " + targetClass, e);
         }
     }
 
-    // Deep copy for Map
-    private static <K, V> Map<K, V> deepCopyMap(Map<K, V> original) {
-        Map<K, V> copy = new HashMap<>();
-        for (Entry<K, V> entry : original.entrySet()) {
-            K key = entry.getKey();
-            V value = entry.getValue();
-            copy.put(key, (V) deepCopyObject(value));
-        }
-        return copy;
+    private static <T, U> U mapNestedObject(T source, Class<U> targetClass, Map<String, String> fieldMappings) {
+        U target = createInstance(targetClass);
+        copyFields(source, target, fieldMappings);
+        return target;
     }
 
-    // Deep copy for Iterable
-    private static Iterable<?> deepCopyIterable(Iterable<?> original) {
-        // Assuming it's a collection (e.g., List, Set)
-        // You may need to handle other types of Iterable as needed
-        // Here, we'll create a new ArrayList for simplicity
-        List<Object> copy = new ArrayList<>();
-        for (Object item : original) {
-            copy.add(deepCopyObject(item));
-        }
-        return copy;
+    private static <T> boolean isPrimitiveOrWrapper(Class<T> type) {
+        return type.isPrimitive() || Number.class.isAssignableFrom(type)
+                || Boolean.class.equals(type) || Character.class.equals(type)
+                || CharSequence.class.isAssignableFrom(type);
     }
 
-    // Deep copy for arrays
-    private static Object deepCopyArray(Object original) {
-        int length = Array.getLength(original);
-        Object copy = Array.newInstance(original.getClass().getComponentType(), length);
-        for (int i = 0; i < length; i++) {
-            Array.set(copy, i, deepCopyObject(Array.get(original, i)));
+    public static void main(String[] args) {
+        // Example usage with array of Employee and field name mappings
+        Employee[] originalEmployees = {
+                new Employee("John Doe", 101, 50000.0, createLinks(), new Address("123 Main St", "City", "12345")),
+                new Employee("Jane Smith", 102, 60000.0, createLinks(), new Address("456 Oak St", "Town", "56789"))
+        };
+
+        // Field name mappings between Employee and EmployeeV2
+        Map<String, String> fieldMappings = createFieldMappings();
+
+        // Copy array of Employee to array of EmployeeV2
+        EmployeeV2[] newEmployees = copyArray(originalEmployees, EmployeeV2.class, fieldMappings);
+
+        // Print the result
+        for (EmployeeV2 newEmployee : newEmployees) {
+            System.out.println("New EmployeeV2: " + newEmployee);
         }
-        return copy;
     }
 
-    // (Other methods remain unchanged)
+    private static List<Map<String, Object>> createLinks() {
+        // Create some example links
+        List<Map<String, Object>> links = new ArrayList<>();
+        links.add(Map.of("url", "https://example.com/link1", "description", "Link 1"));
+        links.add(Map.of("url", "https://example.com/link2", "description", "Link 2"));
+        return links;
+    }
+
+    private static Map<String, String> createFieldMappings() {
+        // Define field name mappings between Employee and EmployeeV2
+        Map<String, String> fieldMappings = Map.of(
+                "name", "employeeName",
+                "employeeId", "id",
+                "salary", "annualSalary",
+                "links", "contactLinks",
+                "address", "employeeAddress",
+                "dschema", "dschema"
+        );
+        return fieldMappings;
+    }
 }
+
+class Employee {
+    private String name;
+    private int employeeId;
+    private double salary;
+    private ArrayList<Map<String, Object>> links;
+    private Address address;
+    private Object dschema;
+
+    public Employee(String name, int employeeId, double salary, ArrayList<Map<String, Object>> links, Address address, Object dschema) {
+        this.name = name;
+        this.employeeId = employeeId;
+        this.salary = salary;
+        this.links = links;
+        this.address = address;
+        this.dschema = dschema;
+    }
+
+    // Getters and setters
+
+    @Override
+    public String toString() {
+        return "Employee{" +
+                "name='" + name + '\'' +
+                ", employeeId=" + employeeId +
+                ", salary=" + salary +
+                ", links=" + links +
+               
