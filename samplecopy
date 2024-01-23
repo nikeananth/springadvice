@@ -36,7 +36,7 @@ public class ObjectCopyUtil {
 
                 // Handle nested objects recursively
                 if (value != null && !isPrimitiveOrWrapper(value.getClass())) {
-                    Object mappedObject = mapNestedObject(value);
+                    Object mappedObject = mapNestedObject(value, targetField.getType());
                     targetField.set(target, mappedObject);
                 } else {
                     targetField.set(target, value);
@@ -55,13 +55,10 @@ public class ObjectCopyUtil {
         }
     }
 
-    private static <T> T mapNestedObject(T source) {
+    private static <T, U> U mapNestedObject(T source, Class<U> targetClass) {
         // Recursive mapping for nested objects
-        Class<?> sourceClass = source.getClass();
-        Class<?> targetClass = sourceClass; // Assume same class for simplicity
-
-        T target = createInstance(sourceClass);
-        copyFields(source, target, createFieldMappingsForClass(sourceClass, targetClass));
+        U target = createInstance(targetClass);
+        copyFields(source, target, createFieldMappingsForClass(source.getClass(), targetClass));
 
         return target;
     }
@@ -179,7 +176,3 @@ class AddressV2 {
         this.street = street;
         this.city = city;
         this.zipCode = zipCode;
-    }
-
-    // Getters, setters, toString, etc.
-}
