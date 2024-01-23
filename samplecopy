@@ -81,3 +81,115 @@ public class EmployeeCopyUtility {
 
     // Additional utility methods if needed
 }
+
+
+
+package FlinkCommerce;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import java.io.ByteArrayInputStream;
+import java.io.InputStream;
+import java.util.Arrays;
+
+public class Record {
+    private Employee[] records;
+    private int numberOfRecords;
+
+    public Record(int maxRecords) {
+        this.records = new Employee[maxRecords];
+        this.numberOfRecords = 0;
+    }
+
+    public Employee[] getRecords() {
+        return records;
+    }
+
+    public void addRecord(Employee record) {
+        if (numberOfRecords < records.length) {
+            records[numberOfRecords++] = record;
+        } else {
+            System.out.println("Record array is full. Cannot add more records.");
+        }
+    }
+
+    public void removeRecord(Employee record) {
+        for (int i = 0; i < numberOfRecords; i++) {
+            if (records[i] != null && records[i].equals(record)) {
+                for (int j = i; j < numberOfRecords - 1; j++) {
+                    records[j] = records[j + 1];
+                }
+                records[numberOfRecords - 1] = null;
+                numberOfRecords--;
+                break;
+            }
+        }
+    }
+
+    public void displayAllRecords() {
+        System.out.println("List of Records:");
+        for (int i = 0; i < numberOfRecords; i++) {
+            if (records[i] != null) {
+                records[i].displayInfo();
+                System.out.println("---------------");
+            }
+        }
+    }
+
+    public InputStream recordToInputStream() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        ByteArrayInputStream inputStream = null;
+
+        try {
+            // Filter out null entries before serialization
+            Employee[] nonNullRecords = Arrays.copyOf(records, numberOfRecords);
+            Record nonNullRecord = new Record(records.length);
+            nonNullRecord.records = nonNullRecords;
+
+            // Use ObjectMapper to write the non-null Record as JSON to the ByteArrayInputStream
+            inputStream = new ByteArrayInputStream(objectMapper.writeValueAsBytes(nonNullRecord));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return inputStream;
+    }
+
+    public JsonNode recordToJsonNode() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        InputStream recordInputStream = recordToInputStream();
+
+        try {
+            // Use ObjectMapper to read the InputStream and convert to JsonNode
+            JsonNode fullJsonNode = objectMapper.readTree(recordInputStream);
+
+            // Extract only the "records" field
+            JsonNode recordsNode = fullJsonNode.get("records");
+
+            // Modify the "country" field to "ctry" in each record's location in the JSON representation
+            if (recordsNode.isArray()) {
+                for (JsonNode recordNode : recordsNode) {
+                    if (recordNode.isObject()) {
+                        JsonNode locationNode = recordNode.get("location");
+                        if (locationNode != null && locationNode.isObject()) {
+                            // Create a new ObjectNode to represent the modified location
+                            ObjectNode modifiedLocationNode = objectMapper.createObjectNode();
+                            modifiedLocationNode.put("city", locationNode.get("city").asText());
+                            modifiedLocationNode.put("ctry", locationNode.get("country").asText());
+
+                            // Replace the original location with the modified one
+                            ((ObjectNode) recordNode).replace("location", modifiedLocationNode);
+                        }
+                    }
+                }
+            }
+
+            return recordsNode;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+}
