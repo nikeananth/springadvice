@@ -56,7 +56,6 @@ public class ObjectCopyUtil {
     }
 
     private static <T, U> U mapNestedObject(T source, Class<U> targetClass) {
-        // Recursive mapping for nested objects
         U target = createInstance(targetClass);
         copyFields(source, target, createFieldMappingsForClass(source.getClass(), targetClass));
 
@@ -69,12 +68,17 @@ public class ObjectCopyUtil {
                 || CharSequence.class.isAssignableFrom(type);
     }
 
-    private static <T> Map<String, String> createFieldMappingsForClass(Class<T> sourceClass, Class<T> targetClass) {
-        // This method can be implemented to provide field mappings based on class type
-        // For simplicity, assuming the same field names for now
-        // You may need a more sophisticated logic based on your requirements
-
-        if (sourceClass == Address.class && targetClass == AddressV2.class) {
+    private static <T, U> Map<String, String> createFieldMappingsForClass(Class<T> sourceClass, Class<U> targetClass) {
+        if (sourceClass == Employee.class && targetClass == EmployeeV2.class) {
+            return Map.of(
+                    "name", "employeeName",
+                    "employeeId", "id",
+                    "salary", "annualSalary",
+                    "links", "contactLinks",
+                    "address", "employeeAddress",
+                    "dschema", "dschema"
+            );
+        } else if (sourceClass == Address.class && targetClass == AddressV2.class) {
             return Map.of(
                     "street", "street",
                     "city", "city",
@@ -86,26 +90,21 @@ public class ObjectCopyUtil {
     }
 
     public static void main(String[] args) {
-        // Example usage with array of Employee and field name mappings
         Employee[] originalEmployees = {
-                new Employee("John Doe", 101, 50000.0, createLinks(), new Address("123 Main St", "City", "12345")),
-                new Employee("Jane Smith", 102, 60000.0, createLinks(), new Address("456 Oak St", "Town", "56789"))
+                new Employee("John Doe", 101, 50000.0, createLinks(), new Address("123 Main St", "City", "12345"), new Object()),
+                new Employee("Jane Smith", 102, 60000.0, createLinks(), new Address("456 Oak St", "Town", "56789"), new Object())
         };
 
-        // Field name mappings between Employee and EmployeeV2
         Map<String, String> fieldMappings = createFieldMappings();
 
-        // Copy array of Employee to array of EmployeeV2
         EmployeeV2[] newEmployees = copyArray(originalEmployees, EmployeeV2.class, fieldMappings);
 
-        // Print the result
         for (EmployeeV2 newEmployee : newEmployees) {
             System.out.println("New EmployeeV2: " + newEmployee);
         }
     }
 
     private static List<Map<String, Object>> createLinks() {
-        // Create some example links
         List<Map<String, Object>> links = new ArrayList<>();
         links.add(Map.of("url", "https://example.com/link1", "description", "Link 1"));
         links.add(Map.of("url", "https://example.com/link2", "description", "Link 2"));
@@ -113,15 +112,14 @@ public class ObjectCopyUtil {
     }
 
     private static Map<String, String> createFieldMappings() {
-        // Define field name mappings between Employee and EmployeeV2
-        Map<String, String> fieldMappings = Map.of(
+        return Map.of(
                 "name", "employeeName",
                 "employeeId", "id",
                 "salary", "annualSalary",
                 "links", "contactLinks",
-                "address", "employeeAddress"
+                "address", "employeeAddress",
+                "dschema", "dschema"
         );
-        return fieldMappings;
     }
 }
 
@@ -131,26 +129,28 @@ class Employee {
     private double salary;
     private ArrayList<Map<String, Object>> links;
     private Address address;
+    private Object dschema;
 
-    public Employee(String name, int employeeId, double salary, ArrayList<Map<String, Object>> links, Address address) {
+    public Employee(String name, int employeeId, double salary, ArrayList<Map<String, Object>> links, Address address, Object dschema) {
         this.name = name;
         this.employeeId = employeeId;
         this.salary = salary;
         this.links = links;
         this.address = address;
+        this.dschema = dschema;
     }
 
-    // Getters, setters, toString, etc.
-}
-
-class EmployeeV2 {
-    private String employeeName;
-    private int id;
-    private double annualSalary;
-    private List<Map<String, Object>> contactLinks;
-    private AddressV2 employeeAddress;
-
-    // Getters, setters, toString, etc.
+    @Override
+    public String toString() {
+        return "Employee{" +
+                "name='" + name + '\'' +
+                ", employeeId=" + employeeId +
+                ", salary=" + salary +
+                ", links=" + links +
+                ", address=" + address +
+                ", dschema=" + dschema +
+                '}';
+    }
 }
 
 class Address {
@@ -164,7 +164,35 @@ class Address {
         this.zipCode = zipCode;
     }
 
-    // Getters, setters, toString, etc.
+    @Override
+    public String toString() {
+        return "Address{" +
+                "street='" + street + '\'' +
+                ", city='" + city + '\'' +
+                ", zipCode='" + zipCode + '\'' +
+                '}';
+    }
+}
+
+class EmployeeV2 {
+    private String employeeName;
+    private int id;
+    private double annualSalary;
+    private List<Map<String, Object>> contactLinks;
+    private AddressV2 employeeAddress;
+    private Object dschema;
+
+    @Override
+    public String toString() {
+        return "EmployeeV2{" +
+                "employeeName='" + employeeName + '\'' +
+                ", id=" + id +
+                ", annualSalary=" + annualSalary +
+                ", contactLinks=" + contactLinks +
+                ", employeeAddress=" + employeeAddress +
+                ", dschema=" + dschema +
+                '}';
+    }
 }
 
 class AddressV2 {
@@ -172,7 +200,12 @@ class AddressV2 {
     private String city;
     private String zipCode;
 
-    public AddressV2(String street, String city, String zipCode) {
-        this.street = street;
-        this.city = city;
-        this.zipCode = zipCode;
+    @Override
+    public String toString() {
+        return "AddressV2{" +
+                "street='" + street + '\'' +
+                ", city='" + city + '\'' +
+                ", zipCode='" + zipCode + '\'' +
+                '}';
+    }
+}
