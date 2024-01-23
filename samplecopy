@@ -5,6 +5,19 @@ import java.util.Map;
 
 public class ObjectCopyUtil {
 
+    public static <T, U> U[] copyArray(T[] sourceArray, Class<U> targetClass, Map<String, String> fieldMappings) {
+        U[] targetArray = (U[]) java.lang.reflect.Array.newInstance(targetClass, sourceArray.length);
+
+        for (int i = 0; i < sourceArray.length; i++) {
+            T source = sourceArray[i];
+            U target = createInstance(targetClass);
+            copyFields(source, target, fieldMappings);
+            targetArray[i] = target;
+        }
+
+        return targetArray;
+    }
+
     public static <T, U> void copyFields(T source, U target, Map<String, String> fieldMappings) {
         Class<?> sourceClass = source.getClass();
         Class<?> targetClass = target.getClass();
@@ -27,33 +40,38 @@ public class ObjectCopyUtil {
         }
     }
 
+    private static <U> U createInstance(Class<U> targetClass) {
+        try {
+            return targetClass.getDeclaredConstructor().newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create instance of " + targetClass, e);
+        }
+    }
+
     public static void main(String[] args) {
-        // Example usage with Employee and EmployeeV2 classes and field name mappings
-        Employee originalEmployee = new Employee(
-                "John Doe", 101, 50000.0,
-                createLinks(), new Address("123 Main St", "City", "12345")
-        );
-        EmployeeV2 newEmployee = new EmployeeV2();
+        // Example usage with array of Employee and field name mappings
+        Employee[] originalEmployees = {
+                new Employee("John Doe", 101, 50000.0, createLinks(), new Address("123 Main St", "City", "12345")),
+                new Employee("Jane Smith", 102, 60000.0, createLinks(), new Address("456 Oak St", "Town", "56789"))
+        };
 
         // Field name mappings between Employee and EmployeeV2
         Map<String, String> fieldMappings = createFieldMappings();
 
-        // Copy values from Employee to EmployeeV2 using field name mappings
-        copyFields(originalEmployee, newEmployee, fieldMappings);
+        // Copy array of Employee to array of EmployeeV2
+        EmployeeV2[] newEmployees = copyArray(originalEmployees, EmployeeV2.class, fieldMappings);
 
         // Print the result
-        System.out.println("Original Employee: " + originalEmployee);
-        System.out.println("New EmployeeV2: " + newEmployee);
+        for (EmployeeV2 newEmployee : newEmployees) {
+            System.out.println("New EmployeeV2: " + newEmployee);
+        }
     }
 
     private static List<Map<String, Object>> createLinks() {
         // Create some example links
         List<Map<String, Object>> links = new ArrayList<>();
-
-        // Add links to the list
         links.add(Map.of("url", "https://example.com/link1", "description", "Link 1"));
         links.add(Map.of("url", "https://example.com/link2", "description", "Link 2"));
-
         return links;
     }
 
@@ -66,7 +84,6 @@ public class ObjectCopyUtil {
                 "links", "contactLinks",
                 "address", "employeeAddress"
         );
-
         return fieldMappings;
     }
 }
