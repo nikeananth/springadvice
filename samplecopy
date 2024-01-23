@@ -54,10 +54,9 @@ public class ObjectCopyUtil {
 
                 // Handle specific fields
                 if (sourceFieldName.equals("datalink")) {
-                    // Assuming datalink is a Map, perform a deep copy of the Map
-                    Map<Object, Object> originalMap = (Map<Object, Object>) value;
-                    Map<Object, Object> copiedMap = deepCopyMap(originalMap);
-                    targetField.set(target, copiedMap);
+                    // Perform a deep copy for the datalink field
+                    Object copiedDatalink = deepCopyObject(value);
+                    targetField.set(target, copiedDatalink);
                 } else if (value != null && !isPrimitiveOrWrapper(value.getClass())) {
                     // Handle nested objects recursively
                     Object mappedObject = mapNestedObject(value, targetField.getType());
@@ -71,13 +70,56 @@ public class ObjectCopyUtil {
         }
     }
 
+    // Recursive deep copy for objects
+    private static Object deepCopyObject(Object original) {
+        if (original == null) {
+            return null;
+        }
+
+        if (original instanceof Map) {
+            // Deep copy for Map
+            return deepCopyMap((Map<?, ?>) original);
+        } else if (original instanceof Iterable) {
+            // Deep copy for Iterable (e.g., List, Set)
+            return deepCopyIterable((Iterable<?>) original);
+        } else if (original.getClass().isArray()) {
+            // Deep copy for arrays
+            return deepCopyArray(original);
+        } else {
+            // Assuming it's a simple object (not a nested structure), return a reference copy
+            return original;
+        }
+    }
+
     // Deep copy for Map
     private static <K, V> Map<K, V> deepCopyMap(Map<K, V> original) {
         Map<K, V> copy = new HashMap<>();
         for (Entry<K, V> entry : original.entrySet()) {
             K key = entry.getKey();
             V value = entry.getValue();
-            copy.put(key, value);
+            copy.put(key, (V) deepCopyObject(value));
+        }
+        return copy;
+    }
+
+    // Deep copy for Iterable
+    private static Iterable<?> deepCopyIterable(Iterable<?> original) {
+        // Assuming it's a collection (e.g., List, Set)
+        // You may need to handle other types of Iterable as needed
+        // Here, we'll create a new ArrayList for simplicity
+        List<Object> copy = new ArrayList<>();
+        for (Object item : original) {
+            copy.add(deepCopyObject(item));
+        }
+        return copy;
+    }
+
+    // Deep copy for arrays
+    private static Object deepCopyArray(Object original) {
+        int length = Array.getLength(original);
+        Object copy = Array.newInstance(original.getClass().getComponentType(), length);
+        for (int i = 0; i < length; i++) {
+            Array.set(copy, i, deepCopyObject(Array.get(original, i)));
         }
         return copy;
     }
