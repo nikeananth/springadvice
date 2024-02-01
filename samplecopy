@@ -1,195 +1,92 @@
-import org.apache.commons.beanutils.BeanUtils;
-
-import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-public class EmployeeCopyUtility {
-
-    public static void copyEmployeeData(EmployeeV1 source, EmployeeV2 destination) {
-        try {
-            // Copy basic employee information
-            BeanUtils.copyProperties(destination, source);
-
-            // Copy address information
-            if (source.getAddress() != null) {
-                AddressV1 sourceAddress = source.getAddress();
-                AddressV2 destinationAddress = new AddressV2();
-                copyAddressData(sourceAddress, destinationAddress);
-
-                // Copy location information
-                if (sourceAddress.getLocation() != null) {
-                    LocationV1 sourceLocation = sourceAddress.getLocation();
-                    LocationV2 destinationLocation = new LocationV2();
-                    copyLocationData(sourceLocation, destinationLocation);
-                    destinationAddress.setLocation(destinationLocation);
-                }
-
-                destination.setAddress(destinationAddress);
-            }
-
-            // Copy employeeData information
-            copyEmployeeDataList(source.getEmployeeData(), destination.getEmployeeData());
-
-            // Copy additional data if needed
-            destination.setEmployeeDepartment("DefaultDepartment"); // Example
-
-        } catch (Exception e) {
-            e.printStackTrace(); // Handle the exception appropriately
-        }
-    }
-
-    private static void copyAddressData(AddressV1 source, AddressV2 destination) {
-        try {
-            BeanUtils.copyProperties(destination, source);
-        } catch (Exception e) {
-            e.printStackTrace(); // Handle the exception appropriately
-        }
-    }
-
-    private static void copyLocationData(LocationV1 source, LocationV2 destination) {
-        try {
-            BeanUtils.copyProperties(destination, source);
-        } catch (Exception e) {
-            e.printStackTrace(); // Handle the exception appropriately
-        }
-    }
-
-    private static <K, V> void copyEmployeeDataList(List<Map<K, V>> sourceList, List<Map<K, V>> destinationList) {
-        if (sourceList != null) {
-            destinationList = new ArrayList<>();
-            for (Map<K, V> sourceMap : sourceList) {
-                Map<K, V> destinationMap = new HashMap<>(sourceMap);
-                destinationList.add(destinationMap);
-            }
-        }
-    }
-
-    public static void main(String[] args) {
-        // Example usage:
-        EmployeeV1 sourceEmployee = new EmployeeV1();
-        // Initialize sourceEmployee with data
-
-        EmployeeV2 destinationEmployee = new EmployeeV2();
-        copyEmployeeData(sourceEmployee, destinationEmployee);
-
-        // Now destinationEmployee contains a copy of sourceEmployee
-        System.out.println(destinationEmployee);
-    }
-
-    // Additional utility methods if needed
-}
-
-
-
-package FlinkCommerce;
-
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.util.Arrays;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
-public class Record {
-    private Employee[] records;
-    private int numberOfRecords;
+public class AnimalApp {
 
-    public Record(int maxRecords) {
-        this.records = new Employee[maxRecords];
-        this.numberOfRecords = 0;
-    }
-
-    public Employee[] getRecords() {
-        return records;
-    }
-
-    public void addRecord(Employee record) {
-        if (numberOfRecords < records.length) {
-            records[numberOfRecords++] = record;
-        } else {
-            System.out.println("Record array is full. Cannot add more records.");
-        }
-    }
-
-    public void removeRecord(Employee record) {
-        for (int i = 0; i < numberOfRecords; i++) {
-            if (records[i] != null && records[i].equals(record)) {
-                for (int j = i; j < numberOfRecords - 1; j++) {
-                    records[j] = records[j + 1];
-                }
-                records[numberOfRecords - 1] = null;
-                numberOfRecords--;
-                break;
-            }
-        }
-    }
-
-    public void displayAllRecords() {
-        System.out.println("List of Records:");
-        for (int i = 0; i < numberOfRecords; i++) {
-            if (records[i] != null) {
-                records[i].displayInfo();
-                System.out.println("---------------");
-            }
-        }
-    }
-
-    public InputStream recordToInputStream() {
+    public static void main(String[] args) throws IOException {
         ObjectMapper objectMapper = new ObjectMapper();
-        ByteArrayInputStream inputStream = null;
 
-        try {
-            // Filter out null entries before serialization
-            Employee[] nonNullRecords = Arrays.copyOf(records, numberOfRecords);
-            Record nonNullRecord = new Record(records.length);
-            nonNullRecord.records = nonNullRecords;
+        // Example JSON array for multiple Tigers with "animalAge"
+        String jsonArray = "[{ \"species\": \"Tiger\", \"sound\": \"Growl\", \"animalAge\": \"5\" }, " +
+                           "{ \"species\": \"Tiger\", \"sound\": \"Roar\", \"age\": \"6\" }]";
 
-            // Use ObjectMapper to write the non-null Record as JSON to the ByteArrayInputStream
-            inputStream = new ByteArrayInputStream(objectMapper.writeValueAsBytes(nonNullRecord));
-        } catch (Exception e) {
-            e.printStackTrace();
+        Animal[] animals = objectMapper.readValue(jsonArray, Animal[].class);
+
+        for (Animal animal : animals) {
+            System.out.println("Species: " + animal.getSpecies() + ", Sound: " + animal.getSound());
         }
-
-        return inputStream;
     }
 
-    public JsonNode recordToJsonNode() {
-        ObjectMapper objectMapper = new ObjectMapper();
-        InputStream recordInputStream = recordToInputStream();
+    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.EXISTING_PROPERTY, property = "age")
+    @JsonSubTypes({
+            @JsonSubTypes.Type(value = Animal.Lion.class, name = "6"),
+            @JsonSubTypes.Type(value = Animal.Tiger.class, name = "5")
+    })
+    @JsonDeserialize(using = Animal.AnimalArrayDeserializer.class)
+    public static class Animal {
+        private String species;
+        private String sound;
+        private String age;
 
-        try {
-            // Use ObjectMapper to read the InputStream and convert to JsonNode
-            JsonNode fullJsonNode = objectMapper.readTree(recordInputStream);
+        @Builder
+        public Animal(String species, String sound, String age) {
+            this.species = species;
+            this.sound = sound;
+            this.age = age;
+        }
 
-            // Extract only the "records" field
-            JsonNode recordsNode = fullJsonNode.get("records");
+        @Data
+        @NoArgsConstructor
+        @AllArgsConstructor
+        @Builder
+        @JsonTypeName("6")
+        public static class Lion extends Animal {
+        }
 
-            // Modify the "country" field to "ctry" in each record's location in the JSON representation
-            if (recordsNode.isArray()) {
-                for (JsonNode recordNode : recordsNode) {
-                    if (recordNode.isObject()) {
-                        JsonNode locationNode = recordNode.get("location");
-                        if (locationNode != null && locationNode.isObject()) {
-                            // Create a new ObjectNode to represent the modified location
-                            ObjectNode modifiedLocationNode = objectMapper.createObjectNode();
-                            modifiedLocationNode.put("city", locationNode.get("city").asText());
-                            modifiedLocationNode.put("ctry", locationNode.get("country").asText());
+        @Data
+        @NoArgsConstructor
+        @AllArgsConstructor
+        @Builder
+        @JsonTypeName("5")
+        public static class Tiger extends Animal {
+        }
 
-                            // Replace the original location with the modified one
-                            ((ObjectNode) recordNode).replace("location", modifiedLocationNode);
-                        }
+        public static class AnimalArrayDeserializer extends JsonDeserializer<Animal[]> {
+
+            @Override
+            public Animal[] deserialize(com.fasterxml.jackson.core.JsonParser p, com.fasterxml.jackson.databind.DeserializationContext ctxt) throws IOException {
+                ArrayNode root = ctxt.readTree(p);
+                List<Animal> animals = new ArrayList<>();
+
+                for (JsonNode node : root) {
+                    ObjectNode objectNode = (ObjectNode) node;
+                    JsonNode ageNode = objectNode.get("animalAge");
+                    if (ageNode == null) {
+                        ageNode = objectNode.get("age");
                     }
-                }
-            }
 
-            return recordsNode;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
+                    Animal animal = ctxt.readValue(objectNode.traverse(), Animal.class);
+                    animals.add(animal);
+                }
+
+                return animals.toArray(new Animal[0]);
+            }
         }
     }
 }
